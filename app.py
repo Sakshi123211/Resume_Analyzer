@@ -63,16 +63,16 @@ Score: 75-100=Excellent, 50-74=Good, 0-49=Poor
     model = genai.GenerativeModel("gemini-2.5-flash")
     response = model.generate_content(prompt)
 
-    # Clean response text if it comes with code fences
     response_text = response.text.strip()
 
-    # Handle `````` or `````` wrappers safely
+    # Remove ``````json wrappers if the model adds them
     if response_text.startswith("```
-        response_text = response_text[len("```json"):].strip()
-        if response_text.endswith("```
-            response_text = response_text[:-3].strip()
-    elif response_text.startswith("```"):
-        response_text = response_text[len("```
+        # strip leading backticks
+        response_text = response_text.lstrip("`")
+        # optional "json" word
+        if response_text.lower().startswith("json"):
+            response_text = response_text[4:].lstrip()
+        # strip trailing backticks
         if response_text.endswith("```"):
             response_text = response_text[:-3].strip()
 
