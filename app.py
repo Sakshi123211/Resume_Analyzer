@@ -36,7 +36,8 @@ def extract_text_from_pdf(pdf_file):
 
 def analyze_with_gemini(resume_text, job_description):
     """Use Gemini to analyze resume against JD"""
-    prompt = f"""Analyze this resume against the job description and respond ONLY with valid JSON (no markdown, no backticks).
+    prompt = f"""
+Analyze this resume against the job description and respond ONLY with valid JSON (no markdown, no backticks).
 
 Resume:
 {resume_text}
@@ -56,19 +57,26 @@ Respond with this exact JSON format:
     "summary": "<2-3 sentence summary>"
 }}
 
-Score: 75-100=Excellent, 50-74=Good, 0-49=Poor"""
+Score: 75-100=Excellent, 50-74=Good, 0-49=Poor
+"""
 
     model = genai.GenerativeModel("gemini-2.5-flash")
     response = model.generate_content(prompt)
 
     # Clean response text if it comes with code fences
     response_text = response.text.strip()
-    if response_text.startswith("```
-        response_text = response_text[7:-3]
-    elif response_text.startswith("```"):
-        response_text = response_text[3:-3]
 
-    return json.loads(response_text.strip())
+    # Handle `````` or `````` wrappers safely
+    if response_text.startswith("```
+        response_text = response_text[len("```json"):].strip()
+        if response_text.endswith("```
+            response_text = response_text[:-3].strip()
+    elif response_text.startswith("```"):
+        response_text = response_text[len("```
+        if response_text.endswith("```"):
+            response_text = response_text[:-3].strip()
+
+    return json.loads(response_text)
 
 
 def create_score_gauge(score):
@@ -124,14 +132,14 @@ def send_to_n8n(data):
     try:
         resp = requests.post(
             webhook_url,
-            json=data,  # sends JSON body with correct Content-Type
+            json=data,          # sends JSON body with correct Content-Type
             timeout=10,
         )
         st.write("n8n webhook status:", resp.status_code)
         if resp.text:
             st.write("n8n webhook response body (first 500 chars):")
             st.code(resp.text[:500])
-        # Treat any 2xx as success (n8n often replies 200 or 204)
+        # Treat any 2xx as success
         return 200 <= resp.status_code < 300
     except Exception as e:
         st.write("n8n webhook error:", str(e))
@@ -228,7 +236,7 @@ if st.button("🔍 Analyze", type="primary", use_container_width=True):
                 st.subheader("📝 Summary")
                 st.info(results["summary"])
 
-                # Send to n8n (always, or you can add score filter here)
+                # Prepare data for n8n
                 st.markdown("---")
                 email_data = {
                     "name": results["name"],
@@ -243,7 +251,7 @@ if st.button("🔍 Analyze", type="primary", use_container_width=True):
                 if sent_ok:
                     st.success("📊 Data sent to automation workflow!")
                 else:
-                    st.warning("⚠️ Data not confirmed by n8n (check logs above)")
+                    st.warning("⚠️ Data not confirmed by n8n (check status/logs above)")
 
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
