@@ -9,18 +9,17 @@ An intelligent resume screening system that uses AI to automatically analyze res
 ## 📸 Screenshots
 
 ### Main Interface
-<img width="1918" height="887" alt="UI" src="https://github.com/user-attachments/assets/a61ca731-94f4-472c-bb9e-4b9cfe475d01" />
+<img width="1893" height="781" alt="image" src="https://github.com/user-attachments/assets/4a71b3d5-0e9d-4067-84b0-9e23dde8fe09" />
 
 
 ### Analysis Results
-<img width="1623" height="791" alt="Analysis" src="https://github.com/user-attachments/assets/6234de1f-8751-440d-b580-fbe1e05db66b" />
-<img width="1622" height="877" alt="analysis and summary" src="https://github.com/user-attachments/assets/02deebcd-182c-4a4d-af4f-a04b0ce41be4" />
-
-
+<img width="1919" height="750" alt="image" src="https://github.com/user-attachments/assets/409fc4e0-b7b1-476d-9589-cb80d3673383" />
+<img width="1917" height="767" alt="image" src="https://github.com/user-attachments/assets/72292b4b-a809-48f7-9c47-eeb8825763c0" />
 
 ### Email Notification
-<img width="1495" height="730" alt="email" src="https://github.com/user-attachments/assets/52c668a3-6986-4eb9-a471-c616f7fa9ad1" />
+<img width="1900" height="554" alt="image" src="https://github.com/user-attachments/assets/ca4b001e-6071-4977-8b47-b529bdef24d2" />
 
+<img width="1744" height="502" alt="image" src="https://github.com/user-attachments/assets/70ea8f7d-5b9a-4900-995c-30eb49a465ba" />
 
 ---
 
@@ -335,18 +334,9 @@ Gemini AI evaluates based on:
 
 ---
 
-## 🙏 Acknowledgments
-
-- **Google Gemini AI** - For powerful language understanding
-- **Streamlit** - For making web app development easy
-- **n8n** - For workflow automation capabilities
-- **Plotly** - For beautiful interactive charts
-- **PyPDF2** - For PDF processing functionality
-
----
-
 ## 📧 Contact
 
-**Anas Shaikh** - 2002shaikhanass@gmail.com
+**Sakshi Singh** - sakshi.singh@gmail.com
 
 ---
+
