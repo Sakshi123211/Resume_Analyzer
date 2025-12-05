@@ -6,6 +6,7 @@ import requests
 import json
 import os
 
+
 # Load secrets (works both locally and on Streamlit Cloud)
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
