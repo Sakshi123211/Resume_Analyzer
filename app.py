@@ -5,25 +5,26 @@ import plotly.graph_objects as go
 import requests
 import json
 import os
+
 # Load secrets (works both locally and on Streamlit Cloud)
 try:
-    # Try Streamlit secrets first (production)
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     N8N_WEBHOOK_URL = st.secrets["N8N_WEBHOOK_URL"]
-except:
-    # Fallback to .env for local development
+except Exception:
     from dotenv import load_dotenv
     load_dotenv()
-    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-    N8N_WEBHOOK_URL = os.getenv('N8N_WEBHOOK_URL')
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
 
-# Configure Gemini with the working model
+# Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Page config
 st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
 
-# Functions
+
+# ---------- Helper functions ----------
+
 def extract_text_from_pdf(pdf_file):
     """Extract text from uploaded PDF"""
     pdf_reader = PyPDF2.PdfReader(pdf_file)
@@ -32,9 +33,9 @@ def extract_text_from_pdf(pdf_file):
         text += page.extract_text()
     return text
 
+
 def analyze_with_gemini(resume_text, job_description):
     """Use Gemini to analyze resume against JD"""
-    
     prompt = f"""Analyze this resume against the job description and respond ONLY with valid JSON (no markdown, no backticks).
 
 Resume:
@@ -57,66 +58,87 @@ Respond with this exact JSON format:
 
 Score: 75-100=Excellent, 50-74=Good, 0-49=Poor"""
 
-    # Use the working model name
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel("gemini-2.5-flash")
     response = model.generate_content(prompt)
-    
-    # Clean response
+
+    # Clean response text if it comes with code fences
     response_text = response.text.strip()
-    if response_text.startswith("```json"):
+    if response_text.startswith("```
         response_text = response_text[7:-3]
     elif response_text.startswith("```"):
         response_text = response_text[3:-3]
-    
+
     return json.loads(response_text.strip())
+
 
 def create_score_gauge(score):
     """Create score gauge chart"""
     color = "green" if score >= 75 else "orange" if score >= 50 else "red"
-    
+
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=score,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': "Match Score", 'font': {'size': 20}},
+        domain={"x": [0, 1], "y": [0, 1]},
+        title={"text": "Match Score", "font": {"size": 20}},
         gauge={
-            'axis': {'range': [0, 100]},
-            'bar': {'color': color},
-            'steps': [
-                {'range': [0, 50], 'color': "lightgray"},
-                {'range': [50, 75], 'color': "lightyellow"},
-                {'range': [75, 100], 'color': "lightgreen"}
+            "axis": {"range": [0, 100]},
+            "bar": {"color": color},
+            "steps": [
+                {"range": [0, 50], "color": "lightgray"},
+                {"range": [50, 75], "color": "lightyellow"},
+                {"range": [75, 100], "color": "lightgreen"},
             ],
-            'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 75}
-        }
+            "threshold": {
+                "line": {"color": "red", "width": 4},
+                "thickness": 0.75,
+                "value": 75,
+            },
+        },
     ))
     fig.update_layout(height=250, margin=dict(l=10, r=10, t=50, b=10))
     return fig
 
+
 def create_skills_chart(matching, missing):
     """Create skills comparison chart"""
     fig = go.Figure(data=[
-        go.Bar(name='Matching', x=['Skills'], y=[len(matching)], marker_color='green'),
-        go.Bar(name='Missing', x=['Skills'], y=[len(missing)], marker_color='red')
+        go.Bar(name="Matching", x=["Skills"], y=[len(matching)], marker_color="green"),
+        go.Bar(name="Missing", x=["Skills"], y=[len(missing)], marker_color="red"),
     ])
     fig.update_layout(
         title="Skills Analysis",
         height=300,
         showlegend=True,
-        barmode='group'
+        barmode="group",
     )
     return fig
 
+
 def send_to_n8n(data):
-    """Send data to n8n webhook"""
+    """Send data to n8n webhook and show debug info"""
     webhook_url = N8N_WEBHOOK_URL
-    if webhook_url:
-        try:
-            response = requests.post(webhook_url, json=data, timeout=10)
-            return response.status_code == 200
-        except:
-            return False
-    return False
+    if not webhook_url:
+        st.write("⚠️ N8N_WEBHOOK_URL not set")
+        return False
+
+    try:
+        resp = requests.post(
+            webhook_url,
+            json=data,  # sends JSON body with correct Content-Type
+            timeout=10,
+        )
+        st.write("n8n webhook status:", resp.status_code)
+        if resp.text:
+            st.write("n8n webhook response body (first 500 chars):")
+            st.code(resp.text[:500])
+        # Treat any 2xx as success (n8n often replies 200 or 204)
+        return 200 <= resp.status_code < 300
+    except Exception as e:
+        st.write("n8n webhook error:", str(e))
+        return False
+
+
+# ---------- UI ----------
 
 st.title("🎯 Resume Analyzer")
 st.markdown("Upload resume PDF and enter job description to get AI-powered analysis")
@@ -125,7 +147,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📄 Upload Resume")
-    resume_file = st.file_uploader("Upload PDF", type=['pdf'])
+    resume_file = st.file_uploader("Upload PDF", type=["pdf"])
 
 with col2:
     st.subheader("💼 Job Description")
@@ -141,86 +163,88 @@ if st.button("🔍 Analyze", type="primary", use_container_width=True):
             try:
                 # Extract PDF text
                 resume_text = extract_text_from_pdf(resume_file)
-                
+
                 # Analyze with Gemini
                 results = analyze_with_gemini(resume_text, job_desc)
-                
+
                 st.success("✅ Analysis Complete!")
-                
-                # Display Results
                 st.markdown("---")
                 st.header("📊 Results")
-                
+
                 # Score and basic info
                 col1, col2, col3 = st.columns([2, 1, 1])
-                
+
                 with col1:
-                    st.plotly_chart(create_score_gauge(results['score']), use_container_width=True)
-                
+                    st.plotly_chart(create_score_gauge(results["score"]), use_container_width=True)
+
                 with col2:
                     st.metric("Score", f"{results['score']}%")
-                    if results['score'] >= 75:
+                    if results["score"] >= 75:
                         st.success("✅ Excellent Match")
-                    elif results['score'] >= 50:
+                    elif results["score"] >= 50:
                         st.warning("⚠️ Good Match")
                     else:
                         st.error("❌ Poor Match")
-                
+
                 with col3:
-                    st.metric("Name", results['name'])
-                    st.metric("Experience", results['experience'])
-                
+                    st.metric("Name", results["name"])
+                    st.metric("Experience", results["experience"])
+
                 # Candidate details
                 st.subheader("👤 Candidate Details")
                 col1, col2 = st.columns(2)
-                
+
                 with col1:
                     st.markdown(f"**Email:** {results['email']}")
                     st.markdown(f"**Experience:** {results['experience']}")
-                
+
                 with col2:
                     st.markdown("**Top Skills:**")
-                    for skill in results['skills'][:5]:
+                    for skill in results["skills"][:5]:
                         st.markdown(f"- {skill}")
-                
+
                 # Charts
                 col1, col2 = st.columns(2)
-                
+
                 with col1:
                     st.plotly_chart(
-                        create_skills_chart(results['matching_skills'], results['missing_skills']),
-                        use_container_width=True
+                        create_skills_chart(
+                            results["matching_skills"],
+                            results["missing_skills"],
+                        ),
+                        use_container_width=True,
                     )
-                
+
                 with col2:
                     st.markdown("**✅ Matching Skills**")
-                    for skill in results['matching_skills'][:5]:
+                    for skill in results["matching_skills"][:5]:
                         st.markdown(f"- {skill}")
-                    
+
                     st.markdown("**❌ Missing Skills**")
-                    for skill in results['missing_skills'][:5]:
+                    for skill in results["missing_skills"][:5]:
                         st.markdown(f"- {skill}")
-                
+
                 # Summary
                 st.subheader("📝 Summary")
-                st.info(results['summary'])
-                
-                # Send to n8n if score > 75
+                st.info(results["summary"])
+
+                # Send to n8n (always, or you can add score filter here)
                 st.markdown("---")
                 email_data = {
-                    "name": results['name'],
-                    "email": results['email'],
-                    "score": results['score'],
-                    "experience": results['experience'],
-                    "skills": ", ".join(results['skills'][:5]),
-                    "summary": results['summary']
+                    "name": results["name"],
+                    "email": results["email"],
+                    "score": results["score"],
+                    "experience": results["experience"],
+                    "skills": ", ".join(results["skills"][:5]),
+                    "summary": results["summary"],
                 }
 
-                if send_to_n8n(email_data):
+                sent_ok = send_to_n8n(email_data)
+                if sent_ok:
                     st.success("📊 Data sent to automation workflow!")
                 else:
-                    st.warning("⚠️ n8n webhook not configured")
-                
+                    st.warning("⚠️ Data not confirmed by n8n (check logs above)")
+
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
 
@@ -232,13 +256,14 @@ with st.sidebar:
     - 75-100: Excellent Match ✅
     - 50-74: Good Match ⚠️
     - 0-49: Poor Match ❌
+
     **💡 Why Use Resume Analyzer?**
     - **Instant Comparison:** Quickly compares resumes against JD requirements.
     - **Highlights Key Skills & Experience:** Shows top candidate strengths at a glance.
     - **Saves Time:** Automates notifications for recruiters, reducing manual work.
     - **Data-Driven Hiring:** Makes hiring decisions precise and objective.
     """)
-    
+
     st.markdown("---")
     st.markdown("**Status:**")
     if GEMINI_API_KEY:
@@ -247,6 +272,6 @@ with st.sidebar:
         st.error("❌ Add GEMINI_API_KEY to secrets")
 
     if N8N_WEBHOOK_URL:
-        st.success("✅ n8n Webhook Ready")
+        st.success("✅ n8n Webhook Ready (check status messages under results)")
     else:
         st.warning("⚠️ Add N8N_WEBHOOK_URL to secrets")
